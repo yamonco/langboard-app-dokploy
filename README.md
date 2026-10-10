@@ -1,5 +1,13 @@
 # Dokploy panel
 
+## Workflow deployment archive policy
+
+`archive.mjs` retains external deployment and log history and returns an explicit
+no-external-action receipt. An archived deployment card must never stop, delete,
+redeploy or roll back a service. Deployment actions require separate explicit
+opt-in and current authority. Signal inbox ingestion never enables workflow
+card actions. Host lifecycle event wiring and runtime acceptance remain pending.
+
 Standalone third party Langboard panel service. Node 22 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored npm SDK package version 0.2.0, including its signal request channel, is the only dependency.
 
 ```sh
