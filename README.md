@@ -107,3 +107,12 @@ Keep the file until native readback resolves all receipts; never replace an
 unknown event with a new observation. CLI output contains receipt IDs only.
 Local tests establish this recovery boundary, not live provider or deployment
 acceptance.
+
+## Installable static package
+
+Run `npm ci` and `npm run package` with Node 22 and Python 3.12 or newer.
+The command uses the pinned standalone SDK wheel to build a deterministic ZIP in `dist/`.
+Publish that ZIP as a release asset whose stable tag matches the declaration version.
+The ZIP installs only public panel assets and the declaration. Server executors and credentials
+remain in a separately operated service. The installed host provides its verified UI origin;
+board permissions and resource selection remain explicit after central installation.
