@@ -19,7 +19,7 @@ export function declaration(config, { workflowCards = false, publishSignals = fa
   return { ...manifest, schema_version: 2, version: publishSignals ? '0.2.1' : '0.2.0',
     capabilities: [...manifest.capabilities, ...(workflowCards ? ['cards.read', 'cards.create'] : []), ...(publishSignals ? ['signals.publish'] : [])],
     ...(workflowCards ? { card_lifecycle: cardLifecycle } : {}),
-    ...(publishSignals ? { signal_policy: signalPolicy } : {}),
+    ...(publishSignals ? { signal_policy: signalPolicy, signal_sources: [...manifest.signal_sources, manifest.key] } : {}),
     trust: { authentication_origins: [], mcp_origins: [], data_origins: [config.publicUrl] },
   };
 }
@@ -40,7 +40,7 @@ export function panelServer(config = configuration(), { workflowCards = false, p
     res.setHeader('Cache-Control', 'no-store');
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { Allow: 'GET, HEAD' }); res.end(); return; }
     let body, type;
-    if (req.url === '/config.mjs') { body = `export default ${JSON.stringify({hostOrigin: config.hostOrigin})};`; type = 'text/javascript; charset=utf-8'; }
+    if (req.url === '/config.mjs') { body = `export default ${JSON.stringify({hostOrigin: config.hostOrigin, signalSources: manifest.signal_sources})};`; type = 'text/javascript; charset=utf-8'; }
     else if (req.url === '/manifest.json') { body = JSON.stringify(manifest); type = 'application/json'; }
     else {
       const asset = paths.get(req.url);

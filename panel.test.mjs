@@ -44,7 +44,7 @@ import { createPanel } from './public/view.mjs';
 test('render uses host widgets, Korean labels and readonly signal evidence', () => {
   const row = {provider, signal_uid: '1', resource_name: 'demo', external_id: '42', event_type: 'observed', outcome: 'failed', occurred_at: '2026-10-10', time_basis: 'observation'};
   let index = 0;
-  const initial = [{items:[row], nextCursor:'Cursor1', busy:false, error:''}, '', ''];
+  const initial = [{items:[row], nextCursor:'Cursor1', busy:false, error:'', source:provider}, '', '', provider];
   const React = {
     createElement: (type, props, ...children) => ({type, props, children}),
     useState: () => [initial[index++], () => {}],
@@ -84,4 +84,23 @@ test('deployment workflow cards retain external state without action grants', ()
   assert.equal(manifest.capabilities.includes('events.receive'), false);
   assert.equal(manifest.capabilities.includes('execution.run'), false);
   assert.equal(manifest.capabilities.includes('interactions.request'), false);
+});
+
+test('publishing profile exposes declared sources and reads external app evidence separately', async t => {
+  const config = configuration();
+  const server = panelServer(config, { publishSignals:true });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const manifest = await (await fetch(url+'/manifest.json')).json();
+  const module = await (await fetch(url+'/config.mjs')).text();
+  const browser = JSON.parse(module.slice('export default '.length, -1));
+  assert.deepEqual(browser.signalSources, ['dokploy','dokploy-panel']);
+  assert.deepEqual(browser.signalSources, manifest.signal_sources);
+  const states=[],requests=[];
+  const item={provider:'dokploy-panel',external_id:'d1',outcome:'success'};
+  const inbox=createInbox({signal:new AbortController().signal,request:async(_,params)=>{requests.push(params);return {items:[item,{provider:'dokploy',external_id:'old'}],next_cursor:null}}},state=>states.push(state),'dokploy-panel');
+  await inbox.load();
+  assert.deepEqual(requests,[{provider:'dokploy-panel'}]);
+  assert.deepEqual(visibleItems(states.at(-1).items,'','','dokploy-panel'),[item]);
 });

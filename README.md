@@ -8,7 +8,7 @@ redeploy or roll back a service. Deployment actions require separate explicit
 opt-in and current authority. Signal inbox ingestion never enables workflow
 card actions. Host lifecycle event wiring and runtime acceptance remain pending.
 
-Standalone third party Langboard panel service. Node 22.13 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored panel SDK 0.2.0 provides the browser bridge; server SDK 0.1.1 signs explicit signal publications and is never exposed as a browser asset.
+Standalone third party Langboard panel service. Node 22.13 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored panel SDK 0.2.3 provides the browser bridge; server SDK 0.1.1 signs explicit signal publications and is never exposed as a browser asset.
 
 ```sh
 npm ci
@@ -76,10 +76,12 @@ a repeated provider read. Partial submissions remain recoverable by event identi
 `--publish-signals` offers schema 2 version 0.2.1 with a finite signal policy and
 `signals.publish`. It is independent from `--workflow-cards`; neither flag grants
 authority or starts a worker. Registration, explicit native connection credentials,
-selected-resource consent and current revisions are required. The existing panel
-still reads legacy `dokploy` signals; displaying the new app source is a separate
-integration gate. No native legacy route is removed.
+selected-resource consent and current revisions are required. The publishing profile lets the panel select legacy `dokploy` or external
+`dokploy-panel` signals, with separate histories and cursors. Browser acceptance
+on the intended host remains an integration gate. No native legacy route is removed.
 
 Tests use local HTTP-shaped responses and host/provider doubles. Durable service
 deployment, actual Dokploy account reads, native persistence readback and browser
 acceptance are still required before replacing host ingestion.
+
+The source-scoped pager comes from panel SDK 0.2.3. Source switching resets cursors, suppresses late state and removes abort listeners; no polling is added. Host permission checks remain authoritative.
