@@ -1,4 +1,5 @@
 import { cardLifecycle } from './archive.mjs';
+import { signalPolicy } from './signals.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -12,17 +13,18 @@ export function configuration(env = process.env) {
   if (publicUrl.protocol !== 'https:' || publicUrl.username || publicUrl.password || publicUrl.hash || publicUrl.search || publicUrl.pathname !== '/') throw new Error('PUBLIC_URL must be an HTTPS origin');
   return { hostOrigin: host.origin, publicUrl: publicUrl.origin };
 }
-export function declaration(config, { workflowCards = false } = {}) {
+export function declaration(config, { workflowCards = false, publishSignals = false } = {}) {
   const manifest = { schema_version: 1, key: 'dokploy-panel', version: '0.1.1', name: 'Dokploy Panel', description: 'Deployment statuses from the authorized Langboard signal inbox.', capabilities: ['panels.render', 'signals.read'], signal_sources: ['dokploy'], resource_types: ['application', 'compose'], panel: { url: config.publicUrl + '/', name: 'Dokploy', icon: 'dokploy' } };
-  if (!workflowCards) return manifest;
-  return { ...manifest, schema_version: 2, version: '0.2.0',
-    capabilities: [...manifest.capabilities, 'cards.read', 'cards.create'],
-    card_lifecycle: cardLifecycle,
+  if (!workflowCards && !publishSignals) return manifest;
+  return { ...manifest, schema_version: 2, version: publishSignals ? '0.2.1' : '0.2.0',
+    capabilities: [...manifest.capabilities, ...(workflowCards ? ['cards.read', 'cards.create'] : []), ...(publishSignals ? ['signals.publish'] : [])],
+    ...(workflowCards ? { card_lifecycle: cardLifecycle } : {}),
+    ...(publishSignals ? { signal_policy: signalPolicy } : {}),
     trust: { authentication_origins: [], mcp_origins: [], data_origins: [config.publicUrl] },
   };
 }
-export function panelServer(config = configuration(), { workflowCards = false } = {}) {
-  const manifest = declaration(config, { workflowCards });
+export function panelServer(config = configuration(), { workflowCards = false, publishSignals = false } = {}) {
+  const manifest = declaration(config, { workflowCards, publishSignals });
   const paths = new Map([
     ['/', ['public/index.html', 'text/html; charset=utf-8']],
     ['/panel.mjs', ['public/panel.mjs', 'text/javascript; charset=utf-8']],
@@ -51,7 +53,7 @@ export function panelServer(config = configuration(), { workflowCards = false } 
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = configuration();
-  const profile = { workflowCards: process.argv.includes("--workflow-cards") };
+  const profile = { workflowCards: process.argv.includes("--workflow-cards"), publishSignals: process.argv.includes("--publish-signals") };
   if (process.argv.includes('--manifest')) process.stdout.write(JSON.stringify(declaration(config, profile), null, 2) + '\n');
   else panelServer(config, profile).listen(Number(process.env.PORT || 8780), process.env.HOST || '127.0.0.1', () => console.log('Dokploy panel listening'));
 }

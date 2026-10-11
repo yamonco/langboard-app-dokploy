@@ -8,7 +8,7 @@ redeploy or roll back a service. Deployment actions require separate explicit
 opt-in and current authority. Signal inbox ingestion never enables workflow
 card actions. Host lifecycle event wiring and runtime acceptance remain pending.
 
-Standalone third party Langboard panel service. Node 22 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored npm SDK package version 0.2.0, including its signal request channel, is the only dependency.
+Standalone third party Langboard panel service. Node 22.13 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored panel SDK 0.2.0 provides the browser bridge; server SDK 0.1.1 signs explicit signal publications and is never exposed as a browser asset.
 
 ```sh
 npm ci
@@ -55,3 +55,31 @@ card keeps its external deployment and logs intact. The declaration makes
 card creation available to a separately authenticated app integration on a
 compatible host; this panel service does not ingest deployment events or
 create cards automatically. Live app registration and creation remain gates.
+
+## Explicit external deployment reads
+
+`provider-api.mjs` implements read-only official endpoints using a server-configured
+exact HTTPS origin and API key. It verifies project/environment/resource membership
+before reading `deployment.all` or `deployment.allByCompose`. Redirects, unknown
+resource types and inventories over 250 rows or 1 MiB are rejected. No logs,
+deployment execution, deletion or retry endpoints are used. See the
+[official deployment API](https://docs.dokploy.com/docs/api/reference-deployment).
+
+`refreshDeployments` in `signals.mjs` accepts a trusted current resource/board mapping
+and a required durable `saveEnvelopes` callback. It normalizes the full bounded
+response before persisting its latest 25 envelopes, then submits them sequentially
+through the shared signed API. Metadata includes provider deployment time, ID and
+finite outcome only; commits are empty rather than inferred. A failed or unknown
+publication stops the batch. Recovery explicitly reuses the saved envelopes, not
+a repeated provider read. Partial submissions remain recoverable by event identity.
+
+`--publish-signals` offers schema 2 version 0.2.1 with a finite signal policy and
+`signals.publish`. It is independent from `--workflow-cards`; neither flag grants
+authority or starts a worker. Registration, explicit native connection credentials,
+selected-resource consent and current revisions are required. The existing panel
+still reads legacy `dokploy` signals; displaying the new app source is a separate
+integration gate. No native legacy route is removed.
+
+Tests use local HTTP-shaped responses and host/provider doubles. Durable service
+deployment, actual Dokploy account reads, native persistence readback and browser
+acceptance are still required before replacing host ingestion.
