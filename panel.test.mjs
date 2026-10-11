@@ -61,3 +61,27 @@ test('render uses host widgets, Korean labels and readonly signal evidence', () 
   assert.ok(nodes.some(node => node.children?.some(child => typeof child === 'string' && child.includes('관측'))));
   assert.equal(nodes.filter(node => node.type === Input).length, 1);
 });
+
+
+test('HTTP manifest preserves the explicit workflow profile', async t => {
+  const config = configuration({ HOST_ORIGIN: 'https://host.example', PUBLIC_URL: 'https://panel.example' });
+  const profile = { workflowCards: true };
+  const server = panelServer(config, profile);
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const manifest = await (await fetch(`http://127.0.0.1:${server.address().port}/manifest.json`)).json();
+  assert.deepEqual(manifest, declaration(config, profile));
+  assert.equal(manifest.schema_version, 2);
+  assert.ok(manifest.capabilities.includes('cards.create'));
+});
+
+test('deployment workflow cards retain external state without action grants', () => {
+  const config = configuration();
+  assert.equal(declaration(config).card_lifecycle, undefined);
+  const manifest = declaration(config, { workflowCards: true });
+  assert.equal(manifest.card_lifecycle.deployment.archive.mode, 'retain');
+  assert.equal(manifest.card_lifecycle.deployment.restore, 'retain_external_state');
+  assert.equal(manifest.capabilities.includes('events.receive'), false);
+  assert.equal(manifest.capabilities.includes('execution.run'), false);
+  assert.equal(manifest.capabilities.includes('interactions.request'), false);
+});

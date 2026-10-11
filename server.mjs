@@ -1,3 +1,4 @@
+import { cardLifecycle } from './archive.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -11,10 +12,17 @@ export function configuration(env = process.env) {
   if (publicUrl.protocol !== 'https:' || publicUrl.username || publicUrl.password || publicUrl.hash || publicUrl.search || publicUrl.pathname !== '/') throw new Error('PUBLIC_URL must be an HTTPS origin');
   return { hostOrigin: host.origin, publicUrl: publicUrl.origin };
 }
-export function declaration(config) {
-  return { schema_version: 1, key: 'dokploy-panel', version: '0.1.1', name: 'Dokploy Panel', description: 'Deployment statuses from the authorized Langboard signal inbox.', capabilities: ['panels.render', 'signals.read'], signal_sources: ['dokploy'], resource_types: ['application', 'compose'], panel: { url: config.publicUrl + '/', name: 'Dokploy', icon: 'dokploy' } };
+export function declaration(config, { workflowCards = false } = {}) {
+  const manifest = { schema_version: 1, key: 'dokploy-panel', version: '0.1.1', name: 'Dokploy Panel', description: 'Deployment statuses from the authorized Langboard signal inbox.', capabilities: ['panels.render', 'signals.read'], signal_sources: ['dokploy'], resource_types: ['application', 'compose'], panel: { url: config.publicUrl + '/', name: 'Dokploy', icon: 'dokploy' } };
+  if (!workflowCards) return manifest;
+  return { ...manifest, schema_version: 2, version: '0.2.0',
+    capabilities: [...manifest.capabilities, 'cards.read', 'cards.create'],
+    card_lifecycle: cardLifecycle,
+    trust: { authentication_origins: [], mcp_origins: [], data_origins: [config.publicUrl] },
+  };
 }
-export function panelServer(config = configuration()) {
+export function panelServer(config = configuration(), { workflowCards = false } = {}) {
+  const manifest = declaration(config, { workflowCards });
   const paths = new Map([
     ['/', ['public/index.html', 'text/html; charset=utf-8']],
     ['/panel.mjs', ['public/panel.mjs', 'text/javascript; charset=utf-8']],
@@ -31,7 +39,7 @@ export function panelServer(config = configuration()) {
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { Allow: 'GET, HEAD' }); res.end(); return; }
     let body, type;
     if (req.url === '/config.mjs') { body = `export default ${JSON.stringify({hostOrigin: config.hostOrigin})};`; type = 'text/javascript; charset=utf-8'; }
-    else if (req.url === '/manifest.json') { body = JSON.stringify(declaration(config)); type = 'application/json'; }
+    else if (req.url === '/manifest.json') { body = JSON.stringify(manifest); type = 'application/json'; }
     else {
       const asset = paths.get(req.url);
       if (!asset) { res.writeHead(404); res.end('Not found'); return; }
@@ -43,6 +51,7 @@ export function panelServer(config = configuration()) {
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = configuration();
-  if (process.argv.includes('--manifest')) process.stdout.write(JSON.stringify(declaration(config), null, 2) + '\n');
-  else panelServer(config).listen(Number(process.env.PORT || 8780), process.env.HOST || '127.0.0.1', () => console.log('Dokploy panel listening'));
+  const profile = { workflowCards: process.argv.includes("--workflow-cards") };
+  if (process.argv.includes('--manifest')) process.stdout.write(JSON.stringify(declaration(config, profile), null, 2) + '\n');
+  else panelServer(config, profile).listen(Number(process.env.PORT || 8780), process.env.HOST || '127.0.0.1', () => console.log('Dokploy panel listening'));
 }
