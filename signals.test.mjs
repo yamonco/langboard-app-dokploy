@@ -63,10 +63,21 @@ test('compose endpoint and bounded signed batch preserve deployment time without
     assert.equal(url, 'https://host.example/apps/v1/boards/12345678901/signals');
     assert.ok(init.headers['x-langboard-webhook-signature'].startsWith('v1='));
     const body = JSON.parse(init.body); assert.equal(body.occurred_at, '2026-10-11T01:00:00.000Z');
-    assert.equal(body.logPath, undefined); return Response.json({accepted:true});
+    assert.equal(body.logPath, undefined); return Response.json({signal_uid:'signal00001',duplicate:false});
   });
   assert.equal(sends, 25); assert.equal(result.truncated, true);
   for (const [status, expected] of [['done','success'],['error','failure'],['cancelled','cancelled']]) assert.equal(normalizeDeployment({...row, status}, scope).outcome, expected);
   assert.equal(normalizeDeployment({...row, status:'running', createdAt:row.finishedAt}, scope).outcome, 'queued');
   assert.equal(normalizeDeployment({...row, status:'running', startedAt:row.finishedAt}, scope).outcome, 'running');
+});
+
+test('ambiguous batch receipt stops later publications and preserves the full saved batch', async () => {
+  const rows = [row, {...row, deploymentId:'d2'}, {...row, deploymentId:'d3'}];
+  let reads = 0, sends = 0, saved;
+  await assert.rejects(refreshDeployments({api:{readDeployments:async () => {reads++;return rows;}},scope,host,
+    saveEnvelopes:async envelopes => {saved=envelopes;}},async () => {
+      sends++;return Response.json(sends===1?{signal_uid:'signal00001',duplicate:false}:{});
+    }),/outcome unknown: invalid receipt/);
+  assert.equal(reads,1);assert.equal(sends,2);assert.equal(saved.length,3);
+  assert.equal(new Set(saved.map(value=>value.event_id)).size,3);
 });

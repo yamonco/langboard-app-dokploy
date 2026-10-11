@@ -8,7 +8,7 @@ redeploy or roll back a service. Deployment actions require separate explicit
 opt-in and current authority. Signal inbox ingestion never enables workflow
 card actions. Host lifecycle event wiring and runtime acceptance remain pending.
 
-Standalone third party Langboard panel service. Node 22.13 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored panel SDK 0.2.3 provides the browser bridge; server SDK 0.1.1 signs explicit signal publications and is never exposed as a browser asset.
+Standalone third party Langboard panel service. Node 22.13 or newer; no core checkout, React installation, copied theme, or browser provider credentials. The vendored panel SDK 0.2.3 provides the browser bridge; server SDK 0.1.2 signs explicit signal publications and is never exposed as a browser asset.
 
 ```sh
 npm ci
@@ -85,3 +85,7 @@ deployment, actual Dokploy account reads, native persistence readback and browse
 acceptance are still required before replacing host ingestion.
 
 The source-scoped pager comes from panel SDK 0.2.3. Source switching resets cursors, suppresses late state and removes abort listeners; no polling is added. Host permission checks remain authoritative.
+
+Signal publication requires a native signal_uid and boolean duplicate receipt.
+An HTTP success without that receipt is an unknown outcome; preserve the saved
+envelope and reconcile before explicit replay. No automatic retry is performed.
