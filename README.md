@@ -89,3 +89,21 @@ The source-scoped pager comes from panel SDK 0.2.3. Source switching resets curs
 Signal publication requires a native signal_uid and boolean duplicate receipt.
 An HTTP success without that receipt is an unknown outcome; preserve the saved
 envelope and reconcile before explicit replay. No automatic retry is performed.
+
+## Durable one-shot observation CLI
+
+Run `node observation.mjs observe CONFIG FILE` for one explicitly configured
+resource. CONFIG includes exact HTTPS `hostOrigin`, `providerOrigin` and the
+`scope` fields required by the provider reader plus `boardUID`, `resourceUID`,
+`appRevision` and `bindingRevision`. Server credentials are environment-only:
+`LANGBOARD_APP_TOKEN` and `DOKPLOY_READ_TOKEN`. No polling is started.
+
+The SDK 0.1.3 store exclusively creates an owner-only, size-limited FILE and
+syncs it before publication. `node observation.mjs resend CONFIG FILE` loads
+the same batch without reading the provider. It rejects changed host/provider
+origins or mapping revisions and stops at the first rejected/unknown receipt.
+Partial batches replay accepted event identities for native deduplication.
+Keep the file until native readback resolves all receipts; never replace an
+unknown event with a new observation. CLI output contains receipt IDs only.
+Local tests establish this recovery boundary, not live provider or deployment
+acceptance.
