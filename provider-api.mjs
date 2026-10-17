@@ -1,6 +1,18 @@
 const id = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,200}$/.test(value);
 const rows = value => { if (!Array.isArray(value) || value.length > 250) throw new Error('Invalid or oversized Dokploy inventory'); return value; };
 
+/** Safe diagnostics: never include URLs, response bodies or credentials. */
+export class DokployReadError extends Error {
+  constructor(status) {
+    const reason = status === 401 ? 'authentication_required' : status === 403 ? 'access_denied' :
+      status === 429 ? 'rate_limited' : status >= 500 ? 'provider_unavailable' : 'request_rejected';
+    super(`Dokploy read failed: ${reason} (HTTP ${status})`);
+    this.name = 'DokployReadError';
+    this.code = reason;
+    this.status = status;
+  }
+}
+
 /** Read-only official API. Server configuration supplies the origin and key. */
 export function dokployApi({ origin, token }, request = fetch) {
   const base = new URL(origin);
@@ -10,7 +22,10 @@ export function dokployApi({ origin, token }, request = fetch) {
       method: 'GET', headers: { 'x-api-key': token, Accept: 'application/json' },
       redirect: 'error', signal: AbortSignal.timeout(15000),
     });
-    if (!response.ok) throw new Error('Dokploy read failed');
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new DokployReadError(response.status);
+    }
     // Bound decoded bytes, not only row counts or Content-Length.
     const reader = response.body.getReader(); let bytes = 0; const chunks = [];
     try {

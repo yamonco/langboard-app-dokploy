@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { signalPublisher, signalStore } from '@langboard/app-server';
-import { dokployApi } from './provider-api.mjs';
+import { dokployApi, DokployReadError } from './provider-api.mjs';
 import { refreshDeployments } from './signals.mjs';
 
 /** Operator-owned mapping, bounded read batch, explicit durable recovery only. */
@@ -29,6 +29,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const result = await runObservation({ path: outputPath, config: JSON.parse(file), resend: mode === 'resend',
         credentials: { hostToken: process.env.LANGBOARD_APP_TOKEN, providerToken: process.env.DOKPLOY_READ_TOKEN } });
       process.stdout.write(JSON.stringify({ ...result, receipts: result.receipts.map(({ signal_uid, duplicate }) => ({ signal_uid, duplicate })) }) + '\n');
-    } catch { console.error('Observation failed; inspect the saved batch and native receipts before explicit resend.'); process.exitCode = 1; }
+    } catch (error) {
+      if (error instanceof DokployReadError) console.error(error.message);
+      console.error('Observation failed; inspect the saved batch and native receipts before explicit resend.'); process.exitCode = 1; }
   }
 }

@@ -116,3 +116,36 @@ Publish that ZIP as a release asset whose stable tag matches the declaration ver
 The ZIP installs only public panel assets and the declaration. Server executors and credentials
 remain in a separately operated service. The installed host provides its verified UI origin;
 board permissions and resource selection remain explicit after central installation.
+
+
+## Migration acceptance against a real deployment
+
+Use the target instance's official Application or Compose resource; do not mirror
+its deployment controller in this app. Record the installed Dokploy version and
+selected project/environment/resource IDs separately from credentials. Configure
+read credentials through the existing connection owner and secret reference.
+
+The observation CLI reports safe HTTP categories for authentication (401), access
+(403), throttling (429), unavailable provider (5xx), and other rejected requests.
+It never prints provider response bodies, URLs or tokens. Failed provider reads
+cancel the response body and stop before durable batch creation or publication.
+There is no automatic retry; correct the connection or respect provider throttling
+before a new explicit observation. Unknown publication receipts still require the
+existing saved-batch reconciliation path.
+
+For a deployment migration, retain evidence for each separate boundary:
+
+- Select the actual target resource and confirm foreign resources are denied.
+- Observe one real deployment, retain the batch, publish it and read the native
+  signal back on the intended board. Explicit replay must report duplicates.
+- Open the installed panel, verify filters and pagination, close/reopen it and
+  check that no polling or disposed requests remain. Check desktop and mobile.
+- Revoke the connection and confirm stale panel data is cleared while native
+  cards, comments, relationships and prior signal history remain available.
+- If workflow cards are enabled, archive a deployment card and verify that the
+  external deployment/service is retained. Inbox evidence alone grants no action.
+
+Database, attachments, OAuth state, editor ownership and cutover/rollback belong
+to the deployment operator's preservation contract. A successful signal does not
+prove that migration, restore integrity or customer access passed. Keep the live
+acceptance checklist open until these outcomes have independent readback.

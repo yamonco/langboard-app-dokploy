@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dokployApi } from './provider-api.mjs';
+import { dokployApi, DokployReadError } from './provider-api.mjs';
 import { normalizeDeployment, refreshDeployments } from './signals.mjs';
 import { declaration, configuration } from './server.mjs';
 
@@ -80,4 +80,23 @@ test('ambiguous batch receipt stops later publications and preserves the full sa
     }),/outcome unknown: invalid receipt/);
   assert.equal(reads,1);assert.equal(sends,2);assert.equal(saved.length,3);
   assert.equal(new Set(saved.map(value=>value.event_id)).size,3);
+});
+
+
+test('provider failures report safe actionable status and never persist or publish', async () => {
+  for (const [status, code] of [[401, 'authentication_required'], [403, 'access_denied'], [429, 'rate_limited'], [503, 'provider_unavailable'], [404, 'request_rejected']]) {
+    let reads = 0, writes = 0, cancelled = false;
+    const api = dokployApi({origin:'https://provider.example', token:'secret'}, async () => {
+      reads++;
+      return new Response(new ReadableStream({cancel() {cancelled = true;}}), {status});
+    });
+    await assert.rejects(refreshDeployments({api, scope, host, saveEnvelopes:async () => {writes++;}}, async () => {writes++;}), error => {
+      assert.ok(error instanceof DokployReadError);
+      assert.equal(error.code, code);
+      assert.equal(error.status, status);
+      assert.ok(!error.message.includes('secret') && !error.message.includes('provider.example'));
+      return true;
+    });
+    assert.equal(reads, 1); assert.equal(writes, 0); assert.equal(cancelled, true);
+  }
 });
