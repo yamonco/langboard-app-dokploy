@@ -49,6 +49,23 @@ test('publication is independent of workflow cards and default off', () => {
   assert.equal(manifest.capabilities.includes('execution.run'), false);
 });
 
+test('native nullable deployment times do not suppress valid events or invent occurrence times', async () => {
+  const rows = [row, {...row, deploymentId:'cancelled', status:'cancelled', finishedAt:null},
+    {...row, deploymentId:'legacy', finishedAt:null}];
+  let saved;
+  const result = await refreshDeployments({api:{readDeployments:async () => rows}, scope, host,
+    saveEnvelopes:async values => {saved=values;}}, async () => Response.json({signal_uid:'signal00001',duplicate:false}));
+  assert.equal(saved.length, 1); assert.equal(saved[0].external_id, 'd1');
+  assert.deepEqual(result.unreported, [
+    {deployment_id:'cancelled',reason:'provider_timestamp_missing'},
+    {deployment_id:'legacy',reason:'provider_timestamp_missing'}]);
+  assert.equal(result.receipts.length, 1);
+  for (const bad of [{...rows[1],applicationId:'foreign'}, {...row,finishedAt:'malformed'}]) {
+    await assert.rejects(refreshDeployments({api:{readDeployments:async () => [bad]}, scope, host,
+      saveEnvelopes:async () => assert.fail('invalid evidence must not be saved')}, async () => assert.fail('must not publish')));
+  }
+});
+
 test('compose endpoint and bounded signed batch preserve deployment time without logs', async () => {
   const composeScope = {...scope, resourceType:'compose', externalId:'c1'};
   const bodies = [[{projectId:'p1'}], [{environmentId:'e1'}], {environmentId:'e1', projectId:'p1', compose:[{composeId:'c1'}]}, []];

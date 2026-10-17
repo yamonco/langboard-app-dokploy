@@ -108,6 +108,17 @@ unknown event with a new observation. CLI output contains receipt IDs only.
 Local tests establish this recovery boundary, not live provider or deployment
 acceptance.
 
+Dokploy deployment timestamps are nullable, including cancelled or older records.
+An observation reports these records in `unreported` with their deployment ID and
+`provider_timestamp_missing`; it still persists and publishes other valid events.
+It never substitutes the observation time or deployment creation time for a missing
+terminal occurrence. Invalid identities, unsupported statuses and malformed times
+still reject the batch before saving. Explicit resend replays only the saved valid
+envelopes; it does not recover missing provider timestamps or claim those records
+were published. Retain the observation output alongside its batch.
+See the [official v0.30.8 deployment schema](https://github.com/Dokploy/dokploy/blob/v0.30.8/packages/server/src/db/schema/deployment.ts)
+and [status update implementation](https://github.com/Dokploy/dokploy/blob/v0.30.8/packages/server/src/services/deployment.ts).
+
 ## Installable static package
 
 Run `npm ci` and `npm run package` with Node 22 and Python 3.12 or newer.
